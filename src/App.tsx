@@ -29,7 +29,6 @@ export default function App() {
   const [category, setCategory] = useState("For you");
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState<number[]>(() => { try { return JSON.parse(localStorage.getItem("pixora:saved") || "[]"); } catch { return []; } });
-  const [liked, setLiked] = useState<number[]>(() => { try { return JSON.parse(localStorage.getItem("pixora:liked") || "[]"); } catch { return []; } });
   const [dark, setDark] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -55,9 +54,6 @@ export default function App() {
     localStorage.setItem("pixora:saved", JSON.stringify(saved));
   }, [saved]);
   useEffect(() => {
-    localStorage.setItem("pixora:liked", JSON.stringify(liked));
-  }, [liked]);
-  useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setUserEmail(data.session?.user.email ?? null));
     const { data } = supabase.auth.onAuthStateChange((_event, session) => setUserEmail(session?.user.email ?? null));
@@ -76,6 +72,39 @@ export default function App() {
     return () => { cancelled = true; };
   }, [userEmail]);
   useEffect(() => {
+    let cancelled = false;
+    setMediaLoading(true);
+    setMediaError("");
+    setMediaPage(1);
+    const term = query.trim() || (category === "For you" || category === "Saved ideas" ? "creative inspiration" : category);
+    fetch("/api/media?" + new URLSearchParams({ q: term, type: mediaType, page: "1", per_page: "24" }))
+      .then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Media search failed."); return body; })
+      .then(body => { if (!cancelled) { setMediaItems(body.items || []); setHasMoreMedia(Boolean(body.hasMore)); } })
+      .catch(error => { if (!cancelled) { setMediaItems([]); setHasMoreMedia(false); setMediaError(error instanceof Error ? error.message : "Could not load media."); } })
+      .finally(() => { if (!cancelled) setMediaLoading(false); });
+    return () => { cancelled = true; };
+  }, [query, category, mediaType]);
+  useEffect(() => {
+    if (mediaPage <= 1) return;
+    let cancelled = false;
+    setMediaLoading(true);
+    const term = query.trim() || (category === "For you" || category === "Saved ideas" ? "creative inspiration" : category);
+    fetch("/api/media?" + new URLSearchParams({ q: term, type: mediaType, page: String(mediaPage), per_page: "24" }))
+      .then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Media search failed."); return body; })
+      .then(body => { if (!cancelled) { setMediaItems(old => [...old, ...(body.items || [])]); setHasMoreMedia(Boolean(body.hasMore)); } })
+      .catch(error => { if (!cancelled) setMediaError(error instanceof Error ? error.message : "Could not load more media."); })
+      .finally(() => { if (!cancelled) setMediaLoading(false); });
+    return () => { cancelled = true; };
+  }, [mediaPage]);
+  useEffect(() => {
+    if (!loadMoreNode || !hasMoreMedia || mediaLoading) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) setMediaPage(page => page + 1);
+    }, { rootMargin: "700px" });
+    observer.observe(loadMoreNode);
+    return () => observer.disconnect();
+  }, [loadMoreNode, hasMoreMedia, mediaLoading]);
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setViewer(null); setAuthOpen(false); }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -87,13 +116,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const filtered = useMemo(() => {
-    const base = category === "Saved ideas" ? pins.filter(pin => saved.includes(pin.id)) : pins;
-    return base.filter(pin =>
-      (category === "For you" || category === "Saved ideas" || pin.category === category) &&
-      (pin.title + " " + pin.creator + " " + pin.category).toLowerCase().includes(query.toLowerCase())
-    );
-  }, [category, query, saved]);
+  const displayedMediaItems = category === "Saved ideas" ? mediaItems.filter(item => savedMediaIds.includes(item.id)) : mediaItems;
 
   async function toggleSavedMedia(item: MediaItem) {
     const wasSaved = savedMediaIds.includes(item.id);
@@ -155,7 +178,7 @@ export default function App() {
         <div className="detail-info"><div className="eyebrow"><span/> PIXORA DISCOVERY</div><h1>{selectedMedia.title || "Visual inspiration"}</h1><p>Shared by {selectedMedia.user} · {selectedMedia.width && selectedMedia.height ? selectedMedia.width + " × " + selectedMedia.height : "High quality media"}</p><div className="detail-tags">{selectedMedia.tags.slice(0,8).map(tag => <span key={tag}>{tag}</span>)}</div><div className="detail-buttons"><button className="upload-btn" onClick={() => void toggleSavedMedia(selectedMedia)}>{savedMediaIds.includes(selectedMedia.id) ? <Check size={16}/> : <Bookmark size={16}/>} {savedMediaIds.includes(selectedMedia.id) ? "Saved" : "Save to ideas"}</button>{selectedMedia.type === "images" && <a className="viewer-action" href={selectedMedia.full} target="_blank" rel="noreferrer"><ArrowDownToLine size={16}/> Open original</a>}{selectedMedia.pageUrl && <a className="viewer-action" href={selectedMedia.pageUrl} target="_blank" rel="noreferrer">Creator page <ArrowRight size={15}/></a>}</div></div>
       </section>
       <section className="related-section"><div className="feed-heading"><div><h2>More to inspire you</h2><p>Keep exploring similar {selectedMedia.type === "videos" ? "videos" : "images"}</p></div><button className="sort-btn" onClick={() => { closeMedia(); setQuery(selectedMedia.tags[0] || selectedMedia.title.split(" ")[0]); }}>Explore this style <ArrowRight size={15}/></button></div>
-        <div className="masonry detail-masonry">{mediaItems.filter(item => item.id !== selectedMedia.id).map(item => <article className="pin-card" key={item.type + item.id}><div className="pin-image"><img src={item.thumbnail || item.image} alt={item.title} loading="lazy" onClick={() => openMedia(item)}/><span className="pin-category">{item.type === "videos" ? "Video" : "Photo"}</span><button className="pin-save" onClick={() => void toggleSavedMedia(item)} aria-label="Save media">{savedMediaIds.includes(item.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button></div><div className="pin-meta"><div><h3>{item.title}</h3><p>{item.user}</p></div></div></article>)}</div>
+        <div className="masonry detail-masonry">{displayedMediaItems.filter(item => item.id !== selectedMedia.id).map(item => <article className="pin-card" key={item.type + item.id}><div className="pin-image"><img src={item.thumbnail || item.image} alt={item.title} loading="lazy" onClick={() => openMedia(item)}/><span className="pin-category">{item.type === "videos" ? "Video" : "Photo"}</span><button className="pin-save" onClick={() => void toggleSavedMedia(item)} aria-label="Save media">{savedMediaIds.includes(item.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button></div><div className="pin-meta"><div><h3>{item.title}</h3><p>{item.user}</p></div></div></article>)}</div>
       </section>
     </main>
   </div>;
@@ -203,8 +226,8 @@ export default function App() {
       <div className="media-type-row"><div><div className="eyebrow"><span/> EXPLORE THE VISUAL WORLD</div><h2>{query ? "Results for “" + query + "”" : category === "For you" ? "Made for your mood" : category === "Saved ideas" ? "Your saved ideas" : category + " inspiration"}</h2></div><div className="media-switch"><button className={mediaType === "images" ? "selected" : ""} onClick={() => setMediaType("images")}><ImageIcon size={15}/> Images</button><button className={mediaType === "videos" ? "selected" : ""} onClick={() => setMediaType("videos")}><Video size={15}/> Videos</button></div></div>
       {mediaError && <div className="media-error" role="status">{mediaError} <button onClick={() => {setMediaError("");setMediaPage(1);setQuery(q => q + " ")}}>Try again</button></div>}
 
-      {mediaItems.length ? <section className="masonry" aria-label={mediaType === "videos" ? "Video discovery feed" : "Image discovery feed"}>
-        {mediaItems.map((item, index) => <article className="pin-card" key={item.type + item.id}>
+      {displayedMediaItems.length ? <section className="masonry" aria-label={mediaType === "videos" ? "Video discovery feed" : "Image discovery feed"}>
+        {displayedMediaItems.map((item, index) => <article className="pin-card" key={item.type + item.id}>
           <div className="pin-image" style={{aspectRatio: item.width && item.height ? item.width + " / " + item.height : "4 / 5"}}>
             <img src={item.thumbnail || item.image} alt={item.title} loading={index > 5 ? "lazy" : "eager"} onClick={() => openMedia(item)} onKeyDown={e => {if(e.key === "Enter") openMedia(item)}} tabIndex={0} role="button" aria-label={"Open " + item.title}/>
             <div className="image-gradient"/>
