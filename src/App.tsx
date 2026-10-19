@@ -4,7 +4,7 @@ import {
   Heart, Image as ImageIcon, LayoutGrid, Menu, Moon, Search, Settings2,
   Sparkles, Sun, Upload, UserRound, Video, X
 } from "lucide-react";
-import { isSupabaseConfigured, supabase } from "./lib/supabase";
+import { supabase } from "./lib/supabase";
 
 type Pin = { id: number; title: string; creator: string; category: string; image: string; height: number };
 const pins: Pin[] = [
