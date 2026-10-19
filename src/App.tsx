@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ArrowDownToLine, ArrowRight, Bell, Bookmark, Check, ChevronDown, Compass,
   Heart, Image as ImageIcon, LayoutGrid, Menu, Moon, Search, Settings2,
-  Sparkles, Sun, Upload, UserRound, Video, X, Expand, Eye, EyeOff, KeyRound
+  Sparkles, Sun, Upload, UserRound, Video, X, Eye, EyeOff, KeyRound
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 
