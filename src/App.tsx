@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowDownToLine, ArrowRight, Bell, Bookmark, Check, ChevronDown, Compass,
   Heart, Image as ImageIcon, LayoutGrid, Menu, Moon, Search, Settings2,
