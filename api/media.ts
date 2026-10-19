@@ -8,14 +8,17 @@ export default async function handler(req: any, res: any) {
   const key = process.env.PIXABAY_API_KEY;
   if (!key) return res.status(503).json({ error: "Media search is temporarily unavailable." });
   const q = String(req.query.q || "creative inspiration").trim().slice(0, 100);
+  const mediaId = String(req.query.id || "").trim().slice(0, 30);
   const type = String(req.query.type || "images") === "videos" ? "videos" : "images";
   const page = Math.max(1, Math.min(50, Number(req.query.page || 1) || 1));
   const perPage = Math.max(12, Math.min(30, Number(req.query.per_page || 24) || 24));
   const endpoint = type === "videos" ? VIDEO_API : PIXABAY;
   const params = new URLSearchParams({
-    key, q, page: String(page), per_page: String(perPage),
+    key, page: String(page), per_page: String(perPage),
     safesearch: "true",
   });
+  if (mediaId) params.set("id", mediaId);
+  else params.set("q", q);
   if (type === "images") {
     params.set("image_type", "photo");
     params.set("orientation", "all");
