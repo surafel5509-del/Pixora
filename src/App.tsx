@@ -157,6 +157,17 @@ export default function App() {
   function openAuth(mode: "login" | "signup" | "reset" = "login") {
     setAuthMode(mode); setAuthMessage(""); setPassword(""); setAuthOpen(true);
   }
+  async function resendVerification() {
+    if (!email.trim()) { setAuthMessage("Enter the email address you used to create your account first."); return; }
+    if (!supabase) { setAuthMessage("Email verification is not configured."); return; }
+    setBusy(true); setAuthMessage("");
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: "https://pixora-surafel5509-del.vercel.app/?verified=1" } });
+      setAuthMessage(error ? error.message : "If this account is awaiting confirmation, a new Pixora verification email has been requested. Check Inbox and Spam.");
+    } catch { setAuthMessage("Could not request another verification email. Please try again."); }
+    finally { setBusy(false); }
+  }
+
   async function submitAuth() {
     if (!email.trim()) { setAuthMessage("Please enter your email address."); return; }
     if (authMode !== "reset" && password.length < 6) { setAuthMessage("Password must be at least 6 characters."); return; }
@@ -164,7 +175,7 @@ export default function App() {
     setBusy(true); setAuthMessage("");
     try {
       if (authMode === "reset") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: "https://pixora-surafel5509-del.vercel.app/" });
         setAuthMessage(error ? error.message : "If this email has an account, a password reset link is on its way.");
       } else if (authMode === "signup") {
         const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/?verified=1" } });
@@ -263,7 +274,7 @@ export default function App() {
           {authMode !== "reset" && <><label className="field-label" htmlFor="password">Password</label><div className="password-wrap"><input id="password" className="email-input" type={showPassword ? "text" : "password"} autoComplete={authMode === "signup" ? "new-password" : "current-password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters" onKeyDown={e => {if(e.key === "Enter") void submitAuth()}}/><button className="password-toggle" type="button" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></>}
           <button className="upload-btn full auth-submit" onClick={() => void submitAuth()} disabled={busy}>{busy ? "Please wait…" : authMode === "signup" ? "Create free account" : authMode === "reset" ? "Send reset link" : "Sign in"} {authMode === "reset" ? <KeyRound size={16}/> : <ArrowRight size={16}/>}</button>
           {authMessage && <p className="auth-message" role="status">{authMessage}</p>}
-          <div className="auth-links">{authMode === "login" ? <><button onClick={() => openAuth("signup")}>Create an account</button><button onClick={() => openAuth("reset")}>Forgot password?</button></> : <button onClick={() => openAuth("login")}>Back to sign in</button>}</div>
+          <div className="auth-links">{authMode === "login" ? <><button onClick={() => openAuth("signup")}>Create an account</button><button onClick={() => openAuth("reset")}>Forgot password?</button></> : authMode === "signup" ? <><button onClick={() => openAuth("login")}>Back to sign in</button><button disabled={busy} onClick={() => void resendVerification()}>Resend verification email</button></> : <button onClick={() => openAuth("login")}>Back to sign in</button>}</div>
           <p className="fine-print">Free to join. Your password is securely managed by Supabase.</p>
         </>}
       </section>
