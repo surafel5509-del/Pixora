@@ -64,6 +64,18 @@ export default function App() {
     return () => data.subscription.unsubscribe();
   }, []);
   useEffect(() => {
+    let cancelled = false;
+    async function syncSavedMedia() {
+      if (!supabase || !userEmail) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data, error } = await supabase.from("pixora_saved_media").select("external_id").eq("owner_id", user.id);
+      if (!error && data && !cancelled) setSavedMediaIds(old => Array.from(new Set([...old, ...data.map(row => String(row.external_id))])));
+    }
+    void syncSavedMedia();
+    return () => { cancelled = true; };
+  }, [userEmail]);
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setViewer(null); setAuthOpen(false); }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -189,7 +201,7 @@ export default function App() {
       </section>
 
       <div className="media-type-row"><div><div className="eyebrow"><span/> EXPLORE THE VISUAL WORLD</div><h2>{query ? "Results for “" + query + "”" : category === "For you" ? "Made for your mood" : category === "Saved ideas" ? "Your saved ideas" : category + " inspiration"}</h2></div><div className="media-switch"><button className={mediaType === "images" ? "selected" : ""} onClick={() => setMediaType("images")}><ImageIcon size={15}/> Images</button><button className={mediaType === "videos" ? "selected" : ""} onClick={() => setMediaType("videos")}><Video size={15}/> Videos</button></div></div>
-      {mediaError && <div className="media-error" role="status">{mediaError} <button onClick={() => {setMediaPage(1);setMediaType(type => type);setQuery(q => q)}}>Try again</button></div>}
+      {mediaError && <div className="media-error" role="status">{mediaError} <button onClick={() => {setMediaError("");setMediaPage(1);setQuery(q => q + " ")}}>Try again</button></div>}
 
       {mediaItems.length ? <section className="masonry" aria-label={mediaType === "videos" ? "Video discovery feed" : "Image discovery feed"}>
         {mediaItems.map((item, index) => <article className="pin-card" key={item.type + item.id}>
@@ -200,7 +212,7 @@ export default function App() {
             <button className="pin-save" onClick={() => void toggleSavedMedia(item)} aria-label={savedMediaIds.includes(item.id) ? "Unsave idea" : "Save idea"}>{savedMediaIds.includes(item.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button>
             {mediaType === "videos" && <span className="video-play"><Video size={16}/></span>}
           </div>
-          <div className="pin-meta"><div><h3>{item.title}</h3><p><span className="creator-avatar">{item.user[0]?.toUpperCase() || "P"}</span>{item.user}</p></div><button className="like-btn" onClick={() => void toggleSavedMedia(item)} aria-label="Save this media"><Heart size={17} fill={savedMediaIds.includes(item.id) ? "currentColor" : "none"}/></button></div>
+          <div className="pin-meta"><div><h3>{item.title}</h3><p><span className="creator-avatar">{item.user[0]?.toUpperCase() || "P"}</span>{item.user} · Pixabay</p></div><button className="like-btn" onClick={() => void toggleSavedMedia(item)} aria-label="Save this media"><Heart size={17} fill={savedMediaIds.includes(item.id) ? "currentColor" : "none"}/></button></div>
         </article>)}
       </section> : !mediaLoading && <div className="empty-state"><Search size={30}/><h3>{mediaError ? "Media is unavailable right now" : "No media found"}</h3><p>{mediaError || "Try another search or category."}</p><button className="upload-btn" onClick={() => {setQuery("");setCategory("For you")}}>Clear filters</button></div>}
       <div ref={setLoadMoreNode} className="load-more-status">{mediaLoading ? "Loading more inspiration…" : hasMoreMedia ? "Scroll for more" : mediaItems.length ? "You’re all caught up" : ""}</div>
