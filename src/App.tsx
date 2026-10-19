@@ -7,6 +7,7 @@ import {
 import { supabase } from "./lib/supabase";
 
 type Pin = { id: number; title: string; creator: string; category: string; image: string; height: number };
+type MediaItem = { id: string; type: "images" | "videos"; title: string; tags: string[]; image: string; thumbnail: string; full: string; video: string; user: string; width: number; height: number; likes: number; views: number; pageUrl: string };
 const pins: Pin[] = [
   { id: 1, title: "Quiet mornings in Kyoto", creator: "Mina Sato", category: "Photography", image: "photo-1493976040374-85c8e12f0c0e", height: 330 },
   { id: 2, title: "Soft sculptural forms", creator: "Studio Forma", category: "Design", image: "photo-1490312278390-ab64016e0aa9", height: 250 },
@@ -40,6 +41,15 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [viewer, setViewer] = useState<Pin | null>(null);
+  const [mediaType, setMediaType] = useState<"images" | "videos">("images");
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaPage, setMediaPage] = useState(1);
+  const [hasMoreMedia, setHasMoreMedia] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState("");
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [loadMoreNode, setLoadMoreNode] = useState<HTMLDivElement | null>(null);
+  const [savedMediaIds, setSavedMediaIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("pixora:saved-media") || "[]"); } catch { return []; } });
 
   useEffect(() => {
     localStorage.setItem("pixora:saved", JSON.stringify(saved));
@@ -73,6 +83,34 @@ export default function App() {
     );
   }, [category, query, saved]);
 
+  async function toggleSavedMedia(item: MediaItem) {
+    const wasSaved = savedMediaIds.includes(item.id);
+    setSavedMediaIds(old => wasSaved ? old.filter(id => id !== item.id) : [...old, item.id]);
+    if (!supabase || !userEmail) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    if (wasSaved) {
+      const { error } = await supabase.from("pixora_saved_media").delete().eq("owner_id", user.id).eq("external_id", item.id).eq("media_type", item.type === "videos" ? "video" : "image");
+      if (error) setAuthMessage("Saved on this device, but cloud removal failed.");
+    } else {
+      const { error } = await supabase.from("pixora_saved_media").upsert({
+        owner_id: user.id, provider: "pixabay", external_id: item.id,
+        media_type: item.type === "videos" ? "video" : "image",
+        title: item.title, media_url: item.full || item.image,
+        thumbnail_url: item.thumbnail || item.image, page_url: item.pageUrl
+      }, { onConflict: "owner_id,provider,external_id,media_type" });
+      if (error) setAuthMessage("Saved on this device, but cloud sync failed.");
+    }
+  }
+  function openMedia(item: MediaItem) {
+    setSelectedMedia(item);
+    window.history.pushState({ pixoraMedia: true }, "", "?media=" + encodeURIComponent(item.id) + "&type=" + item.type);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function closeMedia() {
+    setSelectedMedia(null);
+    if (new URLSearchParams(window.location.search).has("media")) window.history.back();
+  }
   function openAuth(mode: "login" | "signup" | "reset" = "login") {
     setAuthMode(mode); setAuthMessage(""); setPassword(""); setAuthOpen(true);
   }
@@ -96,6 +134,19 @@ export default function App() {
     } catch { setAuthMessage("Something went wrong. Please try again."); }
     finally { setBusy(false); }
   }
+
+  if (selectedMedia) return <div className={dark ? "app dark media-detail-app" : "app media-detail-app"}>
+    <header className="detail-topbar"><a className="brand pixora-brand" href="/" onClick={e => {e.preventDefault();closeMedia()}}><span className="brand-mark"><Sparkles size={19}/></span><span className="brand-word">Pixora</span></a><button className="viewer-action detail-back" onClick={closeMedia}><ArrowRight size={16} className="back-arrow"/> Back to explore</button></header>
+    <main className="detail-page">
+      <section className="detail-hero">
+        <div className="detail-media">{selectedMedia.type === "videos" ? <video controls autoPlay playsInline poster={selectedMedia.image}><source src={selectedMedia.video || selectedMedia.full} type="video/mp4"/>Your browser does not support video playback.</video> : <img src={selectedMedia.full || selectedMedia.image} alt={selectedMedia.title}/>}</div>
+        <div className="detail-info"><div className="eyebrow"><span/> PIXORA DISCOVERY</div><h1>{selectedMedia.title || "Visual inspiration"}</h1><p>Shared by {selectedMedia.user} · {selectedMedia.width && selectedMedia.height ? selectedMedia.width + " × " + selectedMedia.height : "High quality media"}</p><div className="detail-tags">{selectedMedia.tags.slice(0,8).map(tag => <span key={tag}>{tag}</span>)}</div><div className="detail-buttons"><button className="upload-btn" onClick={() => void toggleSavedMedia(selectedMedia)}>{savedMediaIds.includes(selectedMedia.id) ? <Check size={16}/> : <Bookmark size={16}/>} {savedMediaIds.includes(selectedMedia.id) ? "Saved" : "Save to ideas"}</button>{selectedMedia.type === "images" && <a className="viewer-action" href={selectedMedia.full} target="_blank" rel="noreferrer"><ArrowDownToLine size={16}/> Open original</a>}{selectedMedia.pageUrl && <a className="viewer-action" href={selectedMedia.pageUrl} target="_blank" rel="noreferrer">Creator page <ArrowRight size={15}/></a>}</div></div>
+      </section>
+      <section className="related-section"><div className="feed-heading"><div><h2>More to inspire you</h2><p>Keep exploring similar {selectedMedia.type === "videos" ? "videos" : "images"}</p></div><button className="sort-btn" onClick={() => { closeMedia(); setQuery(selectedMedia.tags[0] || selectedMedia.title.split(" ")[0]); }}>Explore this style <ArrowRight size={15}/></button></div>
+        <div className="masonry detail-masonry">{mediaItems.filter(item => item.id !== selectedMedia.id).map(item => <article className="pin-card" key={item.type + item.id}><div className="pin-image"><img src={item.thumbnail || item.image} alt={item.title} loading="lazy" onClick={() => openMedia(item)}/><span className="pin-category">{item.type === "videos" ? "Video" : "Photo"}</span><button className="pin-save" onClick={() => void toggleSavedMedia(item)} aria-label="Save media">{savedMediaIds.includes(item.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button></div><div className="pin-meta"><div><h3>{item.title}</h3><p>{item.user}</p></div></div></article>)}</div>
+      </section>
+    </main>
+  </div>;
 
   return <div className={dark ? "app dark" : "app"}>
     <aside className={mobileMenu ? "sidebar open" : "sidebar"}>
@@ -137,20 +188,22 @@ export default function App() {
         <button className="filter-btn" onClick={() => {setCategory("For you");setQuery("")}}><Settings2 size={15}/> Reset</button>
       </section>
 
-      <div className="feed-heading"><div><h2>{query ? "Search results" : category === "For you" ? "Made for your mood" : category === "Saved ideas" ? "Your saved ideas" : category + " inspiration"}</h2><p>{filtered.length} ideas to explore</p></div><button className="sort-btn" onClick={() => setCategory("For you")}>Curated for you <ChevronDown size={15}/></button></div>
+      <div className="media-type-row"><div><div className="eyebrow"><span/> EXPLORE THE VISUAL WORLD</div><h2>{query ? "Results for “" + query + "”" : category === "For you" ? "Made for your mood" : category === "Saved ideas" ? "Your saved ideas" : category + " inspiration"}</h2></div><div className="media-switch"><button className={mediaType === "images" ? "selected" : ""} onClick={() => setMediaType("images")}><ImageIcon size={15}/> Images</button><button className={mediaType === "videos" ? "selected" : ""} onClick={() => setMediaType("videos")}><Video size={15}/> Videos</button></div></div>
+      {mediaError && <div className="media-error" role="status">{mediaError} <button onClick={() => {setMediaPage(1);setMediaType(type => type);setQuery(q => q)}}>Try again</button></div>}
 
-      {filtered.length ? <section className="masonry" aria-label="Inspiration feed">
-        {filtered.map((pin, index) => <article className="pin-card" key={pin.id}>
-          <div className="pin-image" style={{height: pin.height + "px"}}>
-            <img src={imageUrl(pin.image)} alt={pin.title} loading={index > 3 ? "lazy" : "eager"} onClick={() => setViewer(pin)} onKeyDown={e => {if(e.key === "Enter") setViewer(pin)}} tabIndex={0} role="button" aria-label={"View " + pin.title}/>
+      {mediaItems.length ? <section className="masonry" aria-label={mediaType === "videos" ? "Video discovery feed" : "Image discovery feed"}>
+        {mediaItems.map((item, index) => <article className="pin-card" key={item.type + item.id}>
+          <div className="pin-image" style={{aspectRatio: item.width && item.height ? item.width + " / " + item.height : "4 / 5"}}>
+            <img src={item.thumbnail || item.image} alt={item.title} loading={index > 5 ? "lazy" : "eager"} onClick={() => openMedia(item)} onKeyDown={e => {if(e.key === "Enter") openMedia(item)}} tabIndex={0} role="button" aria-label={"Open " + item.title}/>
             <div className="image-gradient"/>
-            <span className="pin-category">{pin.category}</span>
-            <button className="pin-save" onClick={() => setSaved(old => old.includes(pin.id) ? old.filter(id => id !== pin.id) : [...old, pin.id])} aria-label={saved.includes(pin.id) ? "Unsave idea" : "Save idea"}>{saved.includes(pin.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button>
-            <button className="pin-download" onClick={() => setViewer(pin)} aria-label="View image full screen"><Expand size={16}/></button>
+            <span className="pin-category">{mediaType === "videos" ? <><Video size={12}/> Video</> : "Photo"}</span>
+            <button className="pin-save" onClick={() => void toggleSavedMedia(item)} aria-label={savedMediaIds.includes(item.id) ? "Unsave idea" : "Save idea"}>{savedMediaIds.includes(item.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button>
+            {mediaType === "videos" && <span className="video-play"><Video size={16}/></span>}
           </div>
-          <div className="pin-meta"><div><h3>{pin.title}</h3><p><span className="creator-avatar">{pin.creator[0]}</span>{pin.creator}</p></div><button className={liked.includes(pin.id) ? "like-btn liked" : "like-btn"} onClick={() => setLiked(old => old.includes(pin.id) ? old.filter(id => id !== pin.id) : [...old, pin.id])} aria-label={liked.includes(pin.id) ? "Unlike idea" : "Like idea"}><Heart size={17} fill={liked.includes(pin.id) ? "currentColor" : "none"}/></button></div>
+          <div className="pin-meta"><div><h3>{item.title}</h3><p><span className="creator-avatar">{item.user[0]?.toUpperCase() || "P"}</span>{item.user}</p></div><button className="like-btn" onClick={() => void toggleSavedMedia(item)} aria-label="Save this media"><Heart size={17} fill={savedMediaIds.includes(item.id) ? "currentColor" : "none"}/></button></div>
         </article>)}
-      </section> : <div className="empty-state"><Search size={30}/><h3>No ideas found</h3><p>Try another search or category.</p><button className="upload-btn" onClick={() => {setQuery("");setCategory("For you")}}>Clear filters</button></div>}
+      </section> : !mediaLoading && <div className="empty-state"><Search size={30}/><h3>{mediaError ? "Media is unavailable right now" : "No media found"}</h3><p>{mediaError || "Try another search or category."}</p><button className="upload-btn" onClick={() => {setQuery("");setCategory("For you")}}>Clear filters</button></div>}
+      <div ref={setLoadMoreNode} className="load-more-status">{mediaLoading ? "Loading more inspiration…" : hasMoreMedia ? "Scroll for more" : mediaItems.length ? "You’re all caught up" : ""}</div>
 
       <footer className="footer"><span>© 2026 Pixora</span><span>Made for the endlessly curious <span className="footer-star">✳</span></span><a href="https://supabase.com" target="_blank" rel="noreferrer">Secure auth by Supabase</a></footer>
     </main>
