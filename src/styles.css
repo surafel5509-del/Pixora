@@ -66,3 +66,21 @@
 .detail-masonry .pin-save{opacity:1;transform:none}
 @media(max-width:900px){.detail-hero{grid-template-columns:1fr}.detail-info{padding:0 3px}.detail-media{max-height:65vh}.detail-media img,.detail-media video{max-height:65vh}.detail-masonry{columns:3 160px}}
 @media(max-width:640px){.media-type-row{align-items:flex-start;flex-direction:column;gap:12px}.media-type-row h2{font-size:18px}.media-switch{width:100%}.media-switch button{flex:1;justify-content:center}.media-error{align-items:flex-start;flex-direction:column}.detail-topbar{height:65px;padding:0 14px}.detail-topbar .brand-word{font-size:25px}.detail-back{padding:9px;font-size:10px}.detail-page{padding:16px}.detail-hero{gap:22px}.detail-media{min-height:200px;border-radius:12px}.detail-info h1{font-size:30px}.detail-buttons{gap:7px}.detail-buttons .viewer-action,.detail-buttons .upload-btn{font-size:10px;padding:10px}.related-section{margin-top:35px}.detail-masonry{columns:2 125px}}
+
+/* Layout correction: use a real responsive grid so cards never overlap. */
+.masonry{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-count:initial;column-gap:17px;align-items:start}
+.pin-card{display:block;min-width:0;width:100%;margin:0 0 22px;break-inside:initial}
+.pin-image{height:auto!important;min-height:0;aspect-ratio:auto;overflow:hidden}
+.pin-image img{width:100%;height:auto;min-height:0;aspect-ratio:inherit;object-fit:cover}
+.masonry .pin-image[style*="aspect-ratio"]{aspect-ratio:auto}
+.masonry .pin-image[style*="aspect-ratio"] img{width:100%;height:auto;aspect-ratio:inherit;object-fit:cover}
+/* Per-card media ratio is carried by the image itself to preserve natural dimensions. */
+.masonry .pin-image img{aspect-ratio:var(--media-ratio,4/5);height:auto;object-fit:cover}
+.detail-masonry{grid-template-columns:repeat(5,minmax(0,1fr));columns:initial}
+.pixora-notice{position:fixed;z-index:100;left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100vw - 28px);padding:13px 16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 35px #0002;font-size:12px;color:var(--text)}
+.pixora-notice button{border:0;background:transparent;color:var(--muted);display:grid;place-items:center}
+.utility-row{width:100%;display:flex;align-items:center;gap:10px;padding:13px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);text-align:left;margin:8px 0;font-size:12px}.utility-row strong{margin-left:auto;font-size:10px;color:var(--muted)}
+.utility-copy{text-align:left;max-height:45vh;overflow:auto;font-size:12px;line-height:1.6;color:var(--muted)}.utility-copy strong{display:block;color:var(--text);margin-top:13px}.utility-copy p{margin:4px 0 10px;text-align:left!important}
+@media(max-width:1200px){.masonry{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.masonry{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-masonry{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.masonry{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:11px}.detail-masonry{grid-template-columns:repeat(2,minmax(0,1fr))}.pin-card{margin-bottom:17px}}
