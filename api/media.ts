@@ -1,9 +1,7 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-
 const PIXABAY = "https://pixabay.com/api/";
 const VIDEO_API = "https://pixabay.com/api/videos/";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
