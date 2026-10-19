@@ -5,7 +5,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
-  const key = process.env.PIXABAY_API_KEY;
+  const key = (globalThis as any).process?.env?.PIXABAY_API_KEY as string | undefined;
   if (!key) return res.status(503).json({ error: "Media search is temporarily unavailable." });
   const q = String(req.query.q || "creative inspiration").trim().slice(0, 100);
   const mediaId = String(req.query.id || "").trim().slice(0, 30);
