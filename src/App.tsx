@@ -8,20 +8,6 @@ import { supabase } from "./lib/supabase";
 
 type Pin = { id: number; title: string; creator: string; category: string; image: string; height: number };
 type MediaItem = { id: string; type: "images" | "videos"; title: string; tags: string[]; image: string; thumbnail: string; full: string; video: string; user: string; width: number; height: number; likes: number; views: number; pageUrl: string };
-const pins: Pin[] = [
-  { id: 1, title: "Quiet mornings in Kyoto", creator: "Mina Sato", category: "Photography", image: "photo-1493976040374-85c8e12f0c0e", height: 330 },
-  { id: 2, title: "Soft sculptural forms", creator: "Studio Forma", category: "Design", image: "photo-1490312278390-ab64016e0aa9", height: 250 },
-  { id: 3, title: "Coastal light", creator: "Noah Ellis", category: "Nature", image: "photo-1473116763249-2faaef81ccda", height: 390 },
-  { id: 4, title: "Everyday still life", creator: "Lena Rose", category: "Photography", image: "photo-1494438639946-1ebd1d20bf85", height: 290 },
-  { id: 5, title: "Architecture in sand", creator: "Omar N.", category: "Architecture", image: "photo-1511818966892-d7d671e672a2", height: 360 },
-  { id: 6, title: "A little color theory", creator: "Color Dept.", category: "Design", image: "photo-1494438639946-1ebd1d20bf85", height: 220 },
-  { id: 7, title: "Wild and wonderful", creator: "Ari Green", category: "Nature", image: "photo-1441974231531-c6227db76b6e", height: 310 },
-  { id: 8, title: "The art of slow living", creator: "Jules Martin", category: "Lifestyle", image: "photo-1449247709967-d4461a6a6103", height: 270 },
-  { id: 9, title: "Lines and shadows", creator: "Theo Park", category: "Architecture", image: "photo-1487958449943-2429e8be8625", height: 350 },
-  { id: 10, title: "Bloom study no. 4", creator: "Nia Bloom", category: "Nature", image: "photo-1490750967868-88aa4486c946", height: 280 },
-  { id: 11, title: "Objects with meaning", creator: "Atelier 08", category: "Design", image: "photo-1490312278390-ab64016e0aa9", height: 340 },
-  { id: 12, title: "Weekend in the hills", creator: "Sam Rivera", category: "Travel", image: "photo-1464822759023-fed622ff2c3b", height: 300 }
-];
 const categories = ["For you", "Photography", "Design", "Architecture", "Nature", "Lifestyle", "Travel"];
 const imageUrl = (id: string) => "https://images.unsplash.com/" + id + "?auto=format&fit=crop&w=1600&q=90";
 
@@ -71,6 +57,23 @@ export default function App() {
     void syncSavedMedia();
     return () => { cancelled = true; };
   }, [userEmail]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("media");
+    const type = params.get("type") === "videos" ? "videos" : "images";
+    if (!id) return;
+    let cancelled = false;
+    fetch("/api/media?" + new URLSearchParams({ id, type }))
+      .then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Could not open media."); return body; })
+      .then(body => { if (!cancelled && body.items?.[0]) setSelectedMedia(body.items[0]); })
+      .catch(() => { if (!cancelled) setMediaError("This media link could not be loaded. Return to Explore and open it again."); });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const onPopState = () => setSelectedMedia(null);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
   useEffect(() => {
     let cancelled = false;
     setMediaLoading(true);
