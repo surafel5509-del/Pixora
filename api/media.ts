@@ -2,7 +2,9 @@ const PIXABAY = "https://pixabay.com/api/";
 const VIDEO_API = "https://pixabay.com/api/videos/";
 
 export default async function handler(req: any, res: any) {
-  res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+  res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=3600");
+  res.setHeader("CDN-Cache-Control", "public, max-age=86400, stale-while-revalidate=3600");
+  res.setHeader("Vercel-CDN-Cache-Control", "public, max-age=86400, stale-while-revalidate=3600");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   const key = (globalThis as any).process?.env?.PIXABAY_API_KEY as string | undefined;
