@@ -1,6 +1,6 @@
-# VISTORA
+# Pixora
 
-VISTORA is a responsive visual-discovery web app for finding, searching, saving, and sharing creative inspiration.
+Pixora is a responsive, polished visual-discovery web app for finding, searching, saving, and sharing creative inspiration.
 
 ## Stack
 - React 18 + TypeScript + Vite
@@ -21,7 +21,7 @@ npm run dev
 Build verification: `npm run build`.
 
 ## Supabase
-The VISTORA tables use the `vistora_` prefix in the existing UDS project. Apply `supabase/migrations/20261019000000_vistora_core.sql` if setting up a fresh database. Never put a service-role key in frontend environment variables. User content must be uploaded through authenticated, policy-protected storage paths.
+The Pixora tables use the `vistora_` prefix in the existing UDS project. Apply `supabase/migrations/20261019000000_vistora_core.sql` if setting up a fresh database. Never put a service-role key in frontend environment variables. User content must be uploaded through authenticated, policy-protected storage paths.
 
 ## Free-first
 No Stripe, paid APIs, or paid image services are required. The demo feed uses public Unsplash source images; replace these with your own licensed media for production. Hosting can remain local/free-tier until you choose otherwise.
