@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pixora">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d8f76b" />
+      <stop offset="100%" stop-color="#b6e83a" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)" />
+  <path
+    fill="#24270d"
+    d="M32 12l4.2 11.4a6 6 0 0 0 3.6 3.6L51.2 31l-11.4 4.2a6 6 0 0 0-3.6 3.6L32 50.2l-4.2-11.4a6 6 0 0 0-3.6-3.6L12.8 31l11.4-4a6 6 0 0 0 3.6-3.6L32 12z"
+  />
+  <circle cx="47" cy="18" r="3" fill="#24270d" opacity=".75" />
+  <circle cx="20" cy="45" r="2" fill="#24270d" opacity=".55" />
+</svg>
