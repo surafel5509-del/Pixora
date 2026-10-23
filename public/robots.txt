@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+Sitemap: https://pixora.example.com/sitemap.xml
