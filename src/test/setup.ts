@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 // jsdom does not implement these browser APIs.
-window.scrollTo = (() => {}) as typeof window.scrollTo;
+window.scrollTo = () => {};
 if (!window.matchMedia) {
   window.matchMedia = (query: string) => ({
     matches: false,
