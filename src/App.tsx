@@ -61,13 +61,36 @@ export default function App() {
     return () => { cancelled = true; };
   }, [userEmail]);
   useEffect(() => {
+    let cancelled = false;
+    async function handleAuthReturn() {
+      const params = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const verifiedFlag = params.get("verified") === "1";
+      const isSignupCallback = hashParams.get("type") === "signup" || params.has("code") || verifiedFlag;
+      if (params.has("code") && supabase) {
+        const { error } = await supabase.auth.exchangeCodeForSession(params.get("code")!);
+        if (error && !cancelled) setNotice("We couldn't finish email verification. Please request a new verification email.");
+      }
+      if (isSignupCallback && !cancelled) {
+        if (supabase) {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) await supabase.auth.signOut();
+        }
+        if (!cancelled) {
+          setNotice(verifiedFlag || hashParams.get("type") === "signup" || params.has("code")
+            ? "Email verified successfully. You can now sign in to Pixora."
+            : "Please sign in to Pixora.");
+          setAuthMode("login");
+          setAuthOpen(true);
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+      }
+    }
+    void handleAuthReturn();
     const params = new URLSearchParams(window.location.search);
-    const verified = params.get("verified");
-    if (verified === "1") { setNotice("Email verified successfully. Welcome to Pixora — please sign in."); setAuthMode("login"); setAuthOpen(true); window.history.replaceState({}, "", window.location.pathname); }
     const id = params.get("media");
     const type = params.get("type") === "videos" ? "videos" : "images";
-    if (!id) return;
-    let cancelled = false;
+    if (!id) return () => { cancelled = true; };
     fetch("/api/media?" + new URLSearchParams({ id, type }))
       .then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || "Could not open media."); return body; })
       .then(body => { if (!cancelled && body.items?.[0]) setSelectedMedia(body.items[0]); })
@@ -178,7 +201,7 @@ export default function App() {
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: "https://pixora-surafel5509-del.vercel.app/" });
         setAuthMessage(error ? error.message : "If this email has an account, a password reset link is on its way.");
       } else if (authMode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/?verified=1" } });
+        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: "https://pixora-surafel5509-del.vercel.app/" } });
         setAuthMessage(error ? error.message : "Account created. If email confirmation is enabled, check your inbox and spam folder for the Pixora verification link.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
